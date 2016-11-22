@@ -229,23 +229,21 @@ type PlaintextIndex = Int
 type Offset = Int
 
 vigenereEncipher :: Key -> Plaintext -> Ciphertext
-vigenereEncipher keyword = map (rotate keyword) . withIndex . downcase where
+vigenereEncipher keyword = map (encipherChar keyword) . withIndex . downcase where
 
 vigenereDecipher :: Key -> Ciphertext -> Plaintext
-vigenereDecipher keyword = map (reverseRotate keyword) . withIndex . downcase where
+vigenereDecipher keyword = map (decipherChar keyword) . withIndex . downcase where
 
-  -- this name sucks
-rotate :: Key -> (PlaintextIndex, PlainChar) -> CipherChar
-rotate keyword (_, ' ') = ' '
-rotate keyword (pi, pchar) = intoAToZASCII $ (ord pchar) + (keywordOffset keyword pi)
+encipherChar :: Key -> (PlaintextIndex, PlainChar) -> CipherChar
+encipherChar keyword (_, ' ') = ' '
+encipherChar keyword (pi, pchar) = lowerAlphaASCII $ (ord pchar) + (keywordOffset keyword pi)
 
-  -- ditto
-reverseRotate :: Key -> (PlaintextIndex, PlainChar) -> CipherChar
-reverseRotate keyword (_, ' ') = ' '
-reverseRotate keyword (pi, pchar) = intoAToZASCII $  (ord pchar) - (keywordOffset keyword pi)
+decipherChar :: Key -> (PlaintextIndex, PlainChar) -> CipherChar
+decipherChar keyword (_, ' ') = ' '
+decipherChar keyword (pi, pchar) = lowerAlphaASCII $  (ord pchar) - (keywordOffset keyword pi)
 
-intoAToZASCII :: Int -> Char
-intoAToZASCII = chr . (+ 97) . (flip mod 26) . (flip (-) 97)
+lowerAlphaASCII :: Int -> Char
+lowerAlphaASCII = chr . (+ 97) . (flip mod 26) . (flip (-) 97)
 
 keywordOffset :: Key -> PlaintextIndex -> Offset
 keywordOffset keyword = toOffset . (!!) (downcase keyword) . (flip mod $ length keyword)
@@ -257,10 +255,10 @@ downcase :: String -> String
 downcase = map toLower
 
 withIndex :: String -> [(Int, Char)]
-withIndex string = init (scanr itemAndIndex (strLength - 2, ' ') string) where
+withIndex string = init $ scanr itemAndIndex (strLength - 2, ' ') string where
   strLength = length string
-  itemAndIndex ' ' prev = (((fst prev)), ' ')
-  itemAndIndex x prev = (((fst prev) - 1), x)
+  itemAndIndex ' ' prev  = (fst prev, ' ')
+  itemAndIndex char prev = (fst prev - 1, char)
 
     -- should have used as-patterns, but didn't seem to need it
 isSubsequenceOf :: (Eq a) => [a] -> [a] -> Bool
