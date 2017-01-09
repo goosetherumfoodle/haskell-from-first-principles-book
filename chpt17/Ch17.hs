@@ -1,7 +1,10 @@
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 module Ch17 where
 
+import Data.Monoid ((<>))
 import Data.List (elemIndex)
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2, liftA3)
 import Test.QuickCheck.Checkers
 import Test.QuickCheck.Classes
 
@@ -120,7 +123,16 @@ answerOne = const <$> Just "Hello" <*> pure "world"
 answerTwo :: Maybe (Integer, Integer, [Char], [Integer])
 answerTwo = (,,,) <$> Just 90 <*> Just 10 <*> Just "Tierness" <*> pure [1, 2, 3]
 
+-- Ex List Applicative pg 712
+
 data List a = Nil | Cons a (List a) deriving (Eq, Show)
+
+instance Monoid (List a) where
+  mempty = Nil
+
+  mappend Nil list = list
+  mappend list Nil = list
+  mappend (Cons car cdr) list2 = (Cons car (mappend cdr list2))
 
 instance Functor List where
   fmap _ Nil = Nil
@@ -129,6 +141,157 @@ instance Functor List where
 instance Applicative List where
   pure car = Cons car Nil
 
-  (<*>) (Cons car cdr) (Cons car' cdr') = Cons (car car') $ cdr <*> cdr'
   (<*>) Nil _ = Nil
   (<*>) _ Nil = Nil
+  (<*>) (Cons car cdr) list2 = (car <$> list2) <> (cdr <*> list2)
+
+-- pg 713
+
+flatMap :: (a -> List b) -> List a -> List b
+flatMap _ Nil = Nil
+flatMap f (Cons car cdr) = (f car) <> (flatMap f cdr)
+
+pg713Answer :: List Integer
+pg713Answer = flatMap (\x -> x `c` (9 `c` Nil)) xs where
+  toMyList = foldr Cons Nil
+  xs = toMyList [1, 2, 3]
+  c = Cons
+
+-- ex ZipList Applicative pg 714
+
+take' :: Int -> List a -> List a
+take' 0 _ = mempty
+take' num (Cons car cdr) = Cons car $ take' (num - 1) cdr
+
+newtype ZipList' a = ZipList' (List a) deriving (Eq, Show)
+
+instance Eq a => EqProp (ZipList' a) where
+  xs =-= ys = xs' `eq` ys'
+    where xs' = let (ZipList' l) = xs
+                in take' 3000 l
+          ys' = let (ZipList' l) = ys
+                in take' 3000 l
+
+instance Functor ZipList' where
+  fmap f (ZipList' xs) = ZipList' $ fmap f xs
+
+instance Applicative ZipList' where
+  pure a = ZipList' (Cons a Nil)
+
+  (<*>) (ZipList' Nil) _ = ZipList' Nil
+  (<*>) _ (ZipList' Nil) = ZipList' Nil
+  (<*>) (ZipList' (Cons car cdr)) (ZipList' (Cons car' cdr')) = ZipList' $ Cons (car car') (cdr <*> cdr')
+
+-- Ex Variations on Either pg 719
+
+data Validation e a = Failure e | Success a deriving (Eq, Show)
+
+instance Functor (Validation e) where
+  fmap f (Success a) = Success $ f a
+  fmap _ (Failure e) = Failure e
+
+instance Monoid e => Applicative (Validation e) where
+  pure a = Success a
+
+  (<*>) (Success a) (Success b) = Success $ a b
+  (<*>) (Failure err) (Failure err') = Failure $ err <> err'
+  (<*>) _ (Failure err) = Failure err
+  (<*>) (Failure err) _ = Failure err
+
+-- chpt excercises pg 719
+
+-- 1
+
+pureList :: t -> [t]
+pureList a = [a]
+
+applyList :: [a -> b] -> [a] -> [b]
+applyList [] _ = []
+applyList _ [] = []
+applyList (x:xs) (y:ys) = (x y) : (xs `applyList` ys) -- fix
+
+-- 2
+
+-- pureIO a = IO a
+
+-- todo: not sure about instructions on 719
+
+-- pg 720
+
+-- 1
+-- todo: quickcheck the following
+data Pair a = Pair a a deriving Show
+
+instance Functor Pair where
+  fmap f (Pair a b) = Pair (f a) (f b)
+
+instance Applicative Pair where
+  pure a = Pair a a
+
+  (<*>) (Pair a a') (Pair b b') = Pair (a b) (a' b')
+
+-- 2
+
+data Two a b = Two a b deriving Show
+
+instance Functor (Two a) where
+  fmap f (Two a b) = Two a $ f b
+
+instance Monoid a => Applicative (Two a) where
+
+  (<*>) (Two a b) (Two a' b') = Two (a <> a') (b b')
+
+-- 3
+
+data Three a b c = Three a b c
+
+instance Functor (Three a b) where
+  fmap f (Three a b c) = Three a b $ f c
+
+instance (Monoid a, Monoid b) => Applicative (Three a b) where
+
+  (<*>) (Three a b c) (Three a' b' c') = Three (a <> a') (b <> b') (c c')
+
+-- 4
+
+data Three' a b = Three' a b b
+
+instance Functor (Three' a) where
+  fmap f (Three' a b c) = Three' a (f b) (f c)
+
+instance Monoid a => Applicative (Three' a) where
+
+  (<*>) (Three' a b c) (Three' a' b' c') = Three' (a <> a') (b b') (c c')
+
+-- 5
+
+data Four a b c d = Four a b c d
+
+instance Functor (Four a b c) where
+  fmap f (Four a b c d) = Four a b c $ f d
+
+instance (Monoid a, Monoid b, Monoid c) => Applicative (Four a b c) where
+
+  (<*>) (Four a b c d) (Four a' b' c' d') = Four (a <> a') (b <> b') (c <> c') (d d')
+
+-- 6
+
+data Four' a b = Four' a a a b
+
+instance Functor (Four' a) where
+  fmap f (Four' a b c d) = Four' a b c $ f d
+
+instance Monoid a => Applicative (Four' a) where
+
+  (<*>) (Four' a b c d) (Four' a' b' c' d') = Four' (a <> a') (b <> b') (c <> c') (d d')
+
+-- Combinations
+
+stops :: String
+stops = "pbtdkg"
+
+vowels :: String
+vowels = "aeiou"
+
+combos :: [a] -> [b] -> [c] -> [(a, b, c)]
+combos a b c = liftA3 (,,) a b c
