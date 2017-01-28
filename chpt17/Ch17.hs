@@ -2,9 +2,10 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 module Ch17 where
 
-import Data.Monoid ((<>))
+import Data.Monoid
 import Data.List (elemIndex)
 import Control.Applicative (liftA2, liftA3)
+import Test.QuickCheck
 import Test.QuickCheck.Checkers
 import Test.QuickCheck.Classes
 
@@ -23,7 +24,6 @@ y = lookup 3 $ zip [1, 2, 3] [4, 5, 6]
 z :: Maybe Integer
 z = lookup 2 $ zip [1, 2, 3] [4, 5, 6]
 
--- todo: ?
 tupled :: Maybe (Integer, Integer)
 tupled = (,) <$> y <*> z
 
@@ -72,7 +72,13 @@ instance Applicative Identity where
 
 newtype Constant a b = Constant { getConstant :: a } deriving Show
 
--- todo
+instance Functor (Constant a) where
+  fmap _ (Constant a) = Constant a
+
+instance Monoid a => Applicative (Constant a) where
+  pure _ = Constant mempty
+
+  (Constant a) <*> (Constant b) = Constant $ a <> b
 
 -- example pg 689 Maybe Person
 
@@ -184,19 +190,19 @@ instance Applicative ZipList' where
 
 -- Ex Variations on Either pg 719
 
-data Validation e a = Failure e | Success a deriving (Eq, Show)
+-- data Validation e a = Failure e | Success a deriving (Eq, Show)
 
-instance Functor (Validation e) where
-  fmap f (Success a) = Success $ f a
-  fmap _ (Failure e) = Failure e
+-- instance Functor (Validation e) where
+--   fmap f (Success a) = Success $ f a
+--   fmap _ (Failure e) = Failure e
 
-instance Monoid e => Applicative (Validation e) where
-  pure a = Success a
+-- instance Monoid e => Applicative (Validation e) where
+--   pure a = Success a
 
-  (<*>) (Success a) (Success b) = Success $ a b
-  (<*>) (Failure err) (Failure err') = Failure $ err <> err'
-  (<*>) _ (Failure err) = Failure err
-  (<*>) (Failure err) _ = Failure err
+--   (<*>) (Success a) (Success b) = Success $ a b
+--   (<*>) (Failure err) (Failure err') = Failure $ err <> err'
+--   (<*>) _ (Failure err) = Failure err
+--   (<*>) (Failure err) _ = Failure err
 
 -- chpt excercises pg 719
 
@@ -220,7 +226,7 @@ applyList (x:xs) (y:ys) = (x y) : (xs `applyList` ys) -- fix
 
 -- 1
 -- todo: quickcheck the following
-data Pair a = Pair a a deriving Show
+data Pair a = Pair a a deriving (Show, Eq)
 
 instance Functor Pair where
   fmap f (Pair a b) = Pair (f a) (f b)
@@ -230,60 +236,124 @@ instance Applicative Pair where
 
   (<*>) (Pair a a') (Pair b b') = Pair (a b) (a' b')
 
+instance Eq a => EqProp (Pair a) where (=-=) = eq
+
+instance Arbitrary a => Arbitrary (Pair a) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    return $ Pair a b
+
 -- 2
 
-data Two a b = Two a b deriving Show
+data Two a b = Two a b deriving (Show, Eq)
 
 instance Functor (Two a) where
   fmap f (Two a b) = Two a $ f b
 
 instance Monoid a => Applicative (Two a) where
+  pure a = Two mempty a
 
   (<*>) (Two a b) (Two a' b') = Two (a <> a') (b b')
 
+instance (Eq a, Eq b) => EqProp (Two a b) where (=-=) = eq
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    return $ Two a b
+
+instance Arbitrary a => Arbitrary (Sum a) where
+  arbitrary = do
+    a <- arbitrary
+    return $ Sum a
+
 -- 3
 
-data Three a b c = Three a b c
+data Three a b c = Three a b c deriving (Show, Eq)
 
 instance Functor (Three a b) where
   fmap f (Three a b c) = Three a b $ f c
 
 instance (Monoid a, Monoid b) => Applicative (Three a b) where
+  pure a = Three mempty mempty a
 
   (<*>) (Three a b c) (Three a' b' c') = Three (a <> a') (b <> b') (c c')
 
+instance (Eq a, Eq b, Eq c) => EqProp (Three a b c) where (=-=) = eq
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c) => Arbitrary (Three a b c) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    c <- arbitrary
+    return $ Three a b c
+
 -- 4
 
-data Three' a b = Three' a b b
+data Three' a b = Three' a b b deriving (Eq, Show)
 
 instance Functor (Three' a) where
   fmap f (Three' a b c) = Three' a (f b) (f c)
 
 instance Monoid a => Applicative (Three' a) where
+  pure a = Three' mempty a a
 
   (<*>) (Three' a b c) (Three' a' b' c') = Three' (a <> a') (b b') (c c')
 
+instance (Eq a, Eq b) => EqProp (Three' a b) where (=-=) = eq
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Three' a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    c <- arbitrary
+    return $ Three' a b c
+
 -- 5
 
-data Four a b c d = Four a b c d
+data Four a b c d = Four a b c d deriving (Show, Eq)
 
 instance Functor (Four a b c) where
   fmap f (Four a b c d) = Four a b c $ f d
 
 instance (Monoid a, Monoid b, Monoid c) => Applicative (Four a b c) where
+  pure a = Four mempty mempty mempty a
 
   (<*>) (Four a b c d) (Four a' b' c' d') = Four (a <> a') (b <> b') (c <> c') (d d')
 
+instance (Eq a, Eq b, Eq c, Eq d) => EqProp (Four a b c d) where (=-=) = eq
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d) => Arbitrary (Four a b c d) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    c <- arbitrary
+    d <- arbitrary
+    return $ Four a b c d
+
 -- 6
 
-data Four' a b = Four' a a a b
+data Four' a b = Four' a a a b deriving (Show, Eq)
 
 instance Functor (Four' a) where
   fmap f (Four' a b c d) = Four' a b c $ f d
 
 instance Monoid a => Applicative (Four' a) where
+  pure a = Four' mempty mempty mempty a
 
   (<*>) (Four' a b c d) (Four' a' b' c' d') = Four' (a <> a') (b <> b') (c <> c') (d d')
+
+instance (Eq a, Eq b) => EqProp (Four' a b) where (=-=) = eq
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Four' a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    c <- arbitrary
+    d <- arbitrary
+    return $ Four' a b c d
 
 -- Combinations
 
@@ -295,3 +365,35 @@ vowels = "aeiou"
 
 combos :: [a] -> [b] -> [c] -> [(a, b, c)]
 combos a b c = liftA3 (,,) a b c
+
+main :: IO ()
+main = do
+  -- pair
+  -- data Pair a = Pair a a
+  quickBatch $ applicative (undefined :: Pair (Int, Int, Int))
+  quickBatch $ functor (undefined :: Pair (Int, Int, Int))
+
+  -- Two
+  -- data Two a b = Two a b
+  quickBatch $ applicative (undefined :: Two ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+  quickBatch $ functor (undefined :: Two ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+
+  -- Three
+  -- data Three a b c = Three a b c
+  quickBatch $ applicative (undefined :: Three ((Sum Int), (Sum Int), (Sum Int)) ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+  quickBatch $ functor (undefined :: Three ((Sum Int), (Sum Int), (Sum Int)) ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+
+  -- Three'
+  -- data Three' a b = Three' a b b deriving (Eq, Show)
+  quickBatch $ applicative (undefined :: Three' ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+  quickBatch $ functor (undefined :: Three' ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+
+  -- Four
+  -- data Four a b c d = Four a b c d
+  quickBatch $ applicative (undefined :: Four ((Sum Int), (Sum Int), (Sum Int)) ((Sum Int), (Sum Int), (Sum Int)) ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+  quickBatch $ functor (undefined :: Four ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int) (Int, Int, Int) (Int, Int, Int))
+
+  -- Four'
+  -- data Four' a b = Four' a a a b
+  quickBatch $ applicative (undefined :: Four' ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
+  quickBatch $ functor (undefined :: Four' ((Sum Int), (Sum Int), (Sum Int)) (Int, Int, Int))
