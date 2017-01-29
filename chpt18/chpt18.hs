@@ -1,6 +1,9 @@
 import Data.Monoid ((<>))
 import Control.Monad (join, (>=>))
 import Control.Applicative ((*>), liftA2)
+import Test.QuickCheck
+import Test.QuickCheck.Checkers
+import Test.QuickCheck.Classes
 
 mmap f xs = xs >>= return . f
 
@@ -255,7 +258,7 @@ askForAge = getAge "Hello! How old are you?"
 
 -- 1
 
-data Nope a = NopeDotJpg
+data Nope a = NopeDotJpg deriving (Show, Eq)
 
 instance Functor Nope where
   fmap _ NopeDotJpg = NopeDotJpg
@@ -268,9 +271,14 @@ instance Applicative Nope where
 instance Monad Nope where
   NopeDotJpg >>= _ = NopeDotJpg
 
+instance Eq a => EqProp (Nope a) where (=-=) = eq
+
+instance Arbitrary a => Arbitrary (Nope a) where
+  arbitrary = pure $ NopeDotJpg
+
 -- 2
 
-data PhbtEither b a = Left' a | Right' b
+data PhbtEither b a = Left' a | Right' b deriving (Show, Eq)
 
 instance Functor (PhbtEither b) where
   fmap _ (Right' b) = Right' b
@@ -290,6 +298,14 @@ instance Monad (PhbtEither b) where
   (Right' a) >> _ = Right' a
   (Left' _) >> a = a
 
+instance (Eq a, Eq b) => EqProp (PhbtEither a b) where (=-=) = eq
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (PhbtEither a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    frequency [(1, return $ Left' a), (1, return $ Right' b)]
+
 -- 3
 
 newtype Identity a = Identity a deriving (Eq, Ord, Show)
@@ -305,9 +321,14 @@ instance Applicative Identity where
 instance Monad Identity where
   (Identity a) >>= f = f a
 
+instance Eq a => EqProp (Identity a) where (=-=) = eq
+
+instance Arbitrary a => Arbitrary (Identity a) where
+  arbitrary = arbitrary >>= (\a -> return $ Identity a)
+
 -- 4
 
-data List a = Nil | Cons a (List a) deriving (Show)
+data List a = Nil | Cons a (List a) deriving (Show, Eq)
 
 instance Monoid (List a) where
   mempty = Nil
@@ -318,6 +339,7 @@ instance Monoid (List a) where
 
 instance Functor List where
   fmap f (Cons car cdr) = Cons (f car) (fmap f cdr)
+  fmap _ Nil = Nil
 
 instance Applicative List where
   pure a = Cons a Nil
@@ -331,6 +353,13 @@ instance Monad List where
 
   Nil >>= _ = Nil
   (Cons car cdr) >>= f = (f car) <> (cdr >>= f)
+
+instance Eq a => EqProp (List a) where (=-=) = eq
+
+instance Arbitrary a => Arbitrary (List a) where
+  arbitrary = do
+    -- a <- arbitrary
+    frequency [(10, return Nil)]
 
 -- pg 764 write the following functions using...
 
@@ -365,3 +394,32 @@ meh (x:xs) f = liftA2 (<>) (makeList <$> f x) (meh xs f) where
 
 flipType :: Monad m => [m a] -> m [a]
 flipType = flip meh id
+
+meh' :: Monad m => [a] -> (a -> m b) -> m [b]
+meh' (x:xs) f = (fmap (:) (f x)) <*> (meh xs f)
+meh' [] f = pure []
+
+main = do
+  -- Sum
+  -- data Sum a b = First a | Second b
+  quickBatch $ functor (undefined :: Nope (Int, Int, Int))
+  quickBatch $ applicative (undefined :: Nope (Int, Int, Int))
+  quickBatch $ monad (undefined :: Nope (Int, Int, Int))
+
+  -- PhbtEither
+  -- data PhbtEither b a = Left' a | Right' b
+  quickBatch $ functor (undefined :: PhbtEither (Int, Int, Int) (Int, Int, Int))
+  quickBatch $ applicative (undefined :: PhbtEither (Int, Int, Int) (Int, Int, Int))
+  quickBatch $ monad (undefined :: PhbtEither (Int, Int, Int) (Int, Int, Int))
+
+  -- Identity
+  -- newtype Identity a = Identity a deriving (Eq, Ord, Show)
+  quickBatch $ functor (undefined :: Identity (Int, Int, Int))
+  quickBatch $ applicative (undefined :: Identity (Int, Int, Int))
+  quickBatch $ monad (undefined :: Identity (Int, Int, Int))
+
+  -- List
+  -- data List a = Nil | Cons a (List a) deriving (Show)
+  quickBatch $ functor (undefined :: List (Int, Int, Int))
+  quickBatch $ applicative (undefined :: List (Int, Int, Int))
+  quickBatch $ monad (undefined :: List (Int, Int, Int))
