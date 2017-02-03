@@ -14,21 +14,19 @@ elem' a ta = getAny $ foldMap (Any . (== a)) ta
 
 -- 5. maximum :: (Foldable t, Ord a) => t a -> Maybe a
 
--- null :: (Foldable t) => t a -> Bool
--- null ta = foldMap
+null :: (Foldable t) => t a -> Bool
+null ta = foldr (\ a b -> )
 
-foldMap' :: (Monoid m, Foldable t) => (a -> m) -> t a -> m
-foldMap' f = foldr ((<>) . f) mempty
+
 
 toList' :: (Foldable t) => t a -> [a]
 toList' = foldr (:) []
 
+length' :: (Foldable t) => t a -> Int
+length' = foldr (\ _ count -> count + 1) 0 where
 
--- 7. length :: (Foldable t) => t a -> Int
--- 8. Some say this is all Foldable amounts to.
+fold' :: (Foldable t, Monoid m) => t m -> m
+fold' = foldMap (<> mempty)
 
--- 9. Hint: use foldMap.
--- -- | Combine the elements of a structure using a monoid.
--- fold :: (Foldable t, Monoid m) => t m -> m
--- 10. Define foldMap in terms of foldr.
--- foldMap :: (Foldable t, Monoid m) => (a -> m) -> t a -> m
+foldMap' :: (Monoid m, Foldable t) => (a -> m) -> t a -> m
+foldMap' f = foldr ((<>) . f) mempty
