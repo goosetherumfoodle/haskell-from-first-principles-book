@@ -388,9 +388,24 @@ a = flip (<*>)
 -- (>>=) :: Monad m => m a -> (a -> m b) -> m b
 
 meh :: Monad m => [a] -> (a -> m b) -> m [b]
+meh (x:xs) f = liftA2 (:) (f x) (moMeh xs f)
 meh [] _ = return $ []
-meh (x:xs) f = liftA2 (<>) (makeList <$> f x) (meh xs f) where
-  makeList a = [a]
+
+moMeh :: Monad m => [a] -> (a -> m b) -> m [b]
+moMeh (x:xs) f = do
+  tail <- moMeh xs f
+  head <- f x
+  return $ head : tail
+
+moMeh' :: Monad m => [a] -> (a -> m b) -> m [b]
+moMeh' (x:xs) f = moMeh'  xs f >>=
+                  \tail -> f x >>=
+                  \head -> return $ head : tail
+
+-- Monad m => m a -> (a -> m b) -> m b
+
+-- Expected type: [a] -> (a -> m b) -> m [b]
+-- Actual type: m a -> (a -> m [b]) -> m [b]
 
 flipType :: Monad m => [m a] -> m [a]
 flipType = flip meh id
@@ -398,6 +413,11 @@ flipType = flip meh id
 meh' :: Monad m => [a] -> (a -> m b) -> m [b]
 meh' (x:xs) f = (fmap (:) (f x)) <*> (meh xs f)
 meh' [] f = pure []
+
+blah3 = do
+  x <- [1, 2, 3]
+  y <- [2, 4, 5]
+  [x, x]
 
 main = do
   -- Sum
