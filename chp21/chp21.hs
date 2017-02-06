@@ -1,11 +1,9 @@
 import Data.Monoid
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2, liftA3)
 import Data.Functor.Identity
 import Test.QuickCheck
 import Test.QuickCheck.Checkers
 import Test.QuickCheck.Classes
-
-
 
 -- (((+) .) . (+)) :: Num a => a -> a -> a -> a
 
@@ -53,8 +51,7 @@ instance Functor Identity' where
 instance Eq a => EqProp (Identity' a) where (=-=) = eq
 
 instance Arbitrary a => Arbitrary (Identity' a) where
-  arbitrary = do
-    arbitrary >>= \a -> return $ Identity' a
+  arbitrary = arbitrary >>= \a -> return $ Identity' a
 
 instance Traversable Identity' where
   sequenceA (Identity' fa) = Identity' <$> fa
@@ -104,9 +101,7 @@ instance Traversable Optional where
 instance Eq a => EqProp (Optional a) where (=-=) = eq
 
 instance Arbitrary a => Arbitrary (Optional a) where
-  arbitrary = do
-    a <- arbitrary
-    frequency [(20, return $ Yep a), (1, return Nada)]
+  arbitrary = arbitrary >>= \a -> frequency [(20, return $ Yep a), (1, return Nada)]
 
 -- List
 
@@ -193,20 +188,57 @@ instance Functor n => Functor (S n) where
 instance Foldable (S n) where
   foldMap f (S na a) = f a
 
--- sequenceA :: (Traversable t, Applicative f) => t (f a) -> f (t a)
-
 instance Traversable n => Traversable (S n) where
-  --         t   fa   f ta
-  sequenceA (S n a) = (S (sequenceA n)) <$> a
+  sequenceA (S n a) = liftA2 S (sequenceA n) a
 
+  traverse f (S n a) = liftA2 S (sequenceA $ f <$> n) $ f a
 
 instance (Eq a, Eq (n a)) => EqProp (S n a) where (=-=) = eq
 
-instance (Arbitrary a, Arbitrary (n a)) => Arbitrary (S n a) where
+instance (CoArbitrary a, Arbitrary a, Arbitrary (n a)) => Arbitrary (S n a) where
   arbitrary = do
     n <- arbitrary
     a <- arbitrary
-    return $ S n a
+    return $ S (n a) a
+
+-- Tree
+
+data Tree a = Empty
+            | Leaf a
+            | Node (Tree a) a (Tree a)
+            deriving (Eq, Show)
+
+instance Functor Tree where
+  fmap f Empty = Empty
+  fmap f (Leaf a) = Leaf $ f a
+  fmap f (Node treeL a treeR) = Node (f <$> treeL) (f a) (f <$> treeR)
+
+instance Foldable Tree where
+  foldMap _ Empty = mempty
+  foldMap f (Leaf a) = f a
+  foldMap f (Node treeL a treeR) = (foldMap f treeL) <> (f a) <> (foldMap f treeR)
+
+  foldr _ init Empty = init
+  foldr f init (Leaf a) = f a init
+  foldr f init (Node treeL a treeR) = f a $ foldr f (foldr f init treeR) treeL
+
+instance Traversable Tree where
+  sequenceA Empty = pure Empty
+  sequenceA (Leaf a) = Leaf <$> a
+  sequenceA (Node treeL a treeR) = liftA3 Node (sequenceA treeL) a (sequenceA treeR)
+
+  traverse _ Empty = pure Empty
+  traverse f (Leaf a) = Leaf <$> f a
+  traverse f (Node treeL a treeR) = liftA3 Node (traverse f treeL) (f a) (traverse f treeR)
+
+instance (Eq a) => EqProp (Tree a) where (=-=) = eq
+
+instance Arbitrary a => Arbitrary (Tree a) where
+  arbitrary = do
+    a <- arbitrary
+    treeL <- arbitrary
+    treeR <- arbitrary
+    frequency [(5, return $ Empty), (6, return $ Leaf a), (7, return $ Node treeL a treeR)]
 
 main = do
 
@@ -233,6 +265,10 @@ main = do
   quickBatch $ functor (undefined :: Three' (Int, Int, [Int]) (Int, Int, [Int]))
   quickBatch $ traversable (undefined :: Three' (Int, Int, [Int]) (Int, Int, [Int]))
 
-    -- S
+  --   -- S
   quickBatch $ functor (undefined :: S Identity' (Int, Int, [Int]))
-  quickBatch $ traversable (undefined :: S Identity' (Int, Int, [Int]))
+  quickBatch $ traversable (undefined :: S Identity' (Int, Int, [Int])) -- fails!
+
+  -- Tree
+  quickBatch $ functor (undefined :: Tree (Int, Int, [Int]))
+  quickBatch $ traversable (undefined :: Tree (Int, Int, [Int]))
