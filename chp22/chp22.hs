@@ -37,9 +37,13 @@ chris = Person (HumanName "Chris Allen")
 getDog :: Person -> Dog
 getDog p = Dog (dogName p) (address p)
 
+getDog' :: Person -> Dog
+getDog' = \p -> Dog (dogName p) (address p)
+
 getDogR :: Person -> Dog
 getDogR = Dog <$> dogName <*> address
 
+getDogR' :: Person -> Dog
 getDogR' = liftA2 Dog dogName address
 
 -- Ex Reading Comprehension pg 848
@@ -50,9 +54,30 @@ myLiftA2 a b c = a <$> b <*> c
 asks :: (r -> a) -> Reader r a
 asks = Reader
 
+instance Functor (Reader r) where
+  fmap f (Reader ra) = Reader $ f . ra
+
 instance Applicative (Reader r) where
-  -- pure :: a -> Reader r a
   pure a = Reader $ \ x -> a
 
   -- (<*>) :: Reader r (a -> b) -> Reader r a -> Reader r b
-  (Reader rab) <*> (Reader ra) = Reader $ (\r -> (rab r)) <*> ra
+  (Reader rab) <*> (Reader ra) = Reader $ rab <*> ra
+
+-- pg 853
+
+getDogM :: Person -> Dog
+getDogM = do
+  name <- dogName
+  address <- address
+  return $ Dog name address
+
+getDogM' :: Person -> Dog
+getDogM' = dogName >>= (\name -> address >>= (\addy -> return $ Dog name addy))
+
+
+-- Hint: constrast the type with the Applicative instance and perform the most obvious change you can imagine to make it work
+instance Monad (Reader r) where
+  return = pure
+
+-- (>>=) :: Reader r a -> (a -> Reader r b) -> Reader r b
+  (Reader ra) >>= aRb = Reader $ (runReader . aRb . ra) <*> id
