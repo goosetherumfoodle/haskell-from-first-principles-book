@@ -93,4 +93,22 @@ rollsCountLogged target g = go 0 0 g []  where
     let (die, nextGen) = randomR (1, 6) gen
     in go (sum + die) (count + 1) nextGen (dice <> [intToDie die])
 
+-- pg 873
+
+newtype Moi s a = Moi { runMoi :: s -> (a, s) }
+
+instance Functor (Moi s) where
+-- fmap :: (a -> b) -> Moi s a -> Moi s b
+  fmap f (Moi g) = Moi $ \s -> (x s, s) where
+    x = (f . fst) <$> g
+
+instance Applicative (Moi s) where
+-- pure :: a -> Moi s a
+  pure a = Moi $ \s -> (a, s)
+
+-- (<*>) :: Moi s (a -> b) -> Moi s a -> Moi s b
+  (Moi f) <*> (Moi g) = Moi $ \s -> ((getVal f s) (getVal g s), s) where
+    getVal a = \s' -> (fst . a) s'
+
+
 main = (rollsToGetTwenty . mkStdGen) <$> randomIO
