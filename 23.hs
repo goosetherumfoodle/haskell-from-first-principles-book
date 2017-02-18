@@ -2,7 +2,7 @@
 import System.Random
 -- needed for state-based solution
 import Control.Applicative (liftA3)
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, join)
 import Control.Monad.Trans.State
 import Data.Monoid ((<>))
 
@@ -110,5 +110,12 @@ instance Applicative (Moi s) where
   (Moi f) <*> (Moi g) = Moi $ \s -> ((getVal f s) (getVal g s), s) where
     getVal a = \s' -> (fst . a) s'
 
+instance Monad (Moi s) where
+  return = pure
+
+-- (>>=) :: Moi s a -> (a -> Moi s b) -> Moi s b
+  (Moi f) >>= g = Moi $ \s -> (runMoi . g . (getVal f)) s s     where
+    getVal :: (s -> (a, s)) -> s -> a
+    getVal a = \s' -> (fst . a) s'
 
 main = (rollsToGetTwenty . mkStdGen) <$> randomIO
