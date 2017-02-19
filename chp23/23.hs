@@ -2,9 +2,11 @@
 import System.Random
 -- needed for state-based solution
 import Control.Applicative (liftA3)
-import Control.Monad (replicateM, join)
+import Control.Monad
 import Control.Monad.Trans.State
 import Data.Monoid ((<>))
+-- http://hackage.haskell.org/package/dlist
+import qualified Data.DList as DL
 
 -- begin non-state version
 data Die = SideOne
@@ -116,4 +118,77 @@ instance Monad (Moi s) where
 -- (>>=) :: Moi s a -> (a -> Moi s b) -> Moi s b
   moif@(Moi _) >>= g = join $ g <$> moif where
 
-main = (rollsToGetTwenty . mkStdGen) <$> randomIO
+-- pg 874
+
+fizzBuzz :: Integer -> String
+fizzBuzz n | n `mod` 15 == 0 = "FizzBuzz"
+           | n `mod` 5 == 0 = "Buzz"
+           | n `mod` 3 == 0 = "Fizz"
+           | otherwise = show n
+
+fizzbuzzList :: [Integer] -> [String]
+fizzbuzzList list = execState (mapM_ addResult list) []
+
+addResult :: Monad m => Integer -> StateT [String] m () -- had to add `m ()`
+addResult n = do
+  xs <- get
+  let result = fizzBuzz n
+  put (result : xs)
+
+-- wtf!!! won't compile
+-- fizzbuzzList' :: [Integer] -> DL.DList String
+-- fizzbuzzList' list = execState (mapM_ addResult list) DL.empty
+
+-- addResult' n = do
+--   xs <- get
+--   let result = fizzBuzz n
+--   put (DL.snoc xs result)
+
+-- ex 877 Fizzbuzz Differently
+-- It’s an exercise! Rather than changing the underlying data structure,
+-- fix our reversing fizzbuzz by changing the code in the following way:
+
+-- fizzbuzzFromTo :: Integer -> Integer -> [String]
+-- fizzbuzzFromTo = undefined
+
+-- Continue to use consing in the construction of the result list, but
+-- have it come out in the right order to begin with by enumerating the
+-- sequence backwards. This sort of tactic is more commonly how you’ll
+-- want to fix your code when you’re quashing unnecessary reversals.
+
+-- 23 chpt exercises
+
+-- 1 Construct a State where the state is also the value you return.
+
+get' :: State s s
+get' = state $ \s -> (s, s)
+
+-- 2. Construct a State where the resulting state is the argument
+-- provided and the value is defaulted to unit.
+
+put' :: s -> State s ()
+put' s = state $ \s -> ((), s)
+
+-- 3. Run the State with s and get the state that results.
+
+-- wtf is with this "State" data constructor?
+
+-- exec :: State s a -> s -> s
+-- exec (State sa) s = snd $ sa s
+
+-- 4. Run the State with s and get the value that results.
+
+-- again... what is this constructor?
+
+-- eval :: State s a -> s -> a
+-- eval (State sa) = ???
+
+-- 5. Write a function which applies a function to create a new State.
+
+myModify :: (s -> s) -> State s ()
+myModify f = state $ \s -> ((), f s)
+
+main = do
+  (rollsToGetTwenty . mkStdGen) <$> randomIO
+  mapM_ putStrLn $ reverse $ fizzbuzzList [1..100]
+  -- mapM_ putStrLn $ fizzbuzzList' [1..100]
