@@ -114,8 +114,6 @@ instance Monad (Moi s) where
   return = pure
 
 -- (>>=) :: Moi s a -> (a -> Moi s b) -> Moi s b
-  (Moi f) >>= g = Moi $ \s -> (runMoi . g . (getVal f)) s s     where
-    getVal :: (s -> (a, s)) -> s -> a
-    getVal a = \s' -> (fst . a) s'
+  moif@(Moi _) >>= g = join $ g <$> moif where
 
 main = (rollsToGetTwenty . mkStdGen) <$> randomIO
