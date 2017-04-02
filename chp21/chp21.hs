@@ -59,25 +59,22 @@ instance Traversable Identity' where
 
 -- Constant
 
--- newtype Constant a b = Constant { getConstant :: a } deriving (Show, Eq)
+newtype Constant a b = Constant { getConstant :: a } deriving (Show, Eq)
 
--- instance Functor (Constant a) where
---   fmap _ (Constant a) = Constant a
+instance Functor (Constant a) where
+  fmap _ (Constant a) = Constant a
 
--- instance Foldable (Constant a) where
---   foldMap f (Constant a) = mempty
+instance Foldable (Constant a) where
+  foldMap f (Constant a) = mempty
 
--- -- sequenceA :: (Traversable t, Applicative f) => t (f a) -> f (t a)
--- -- traverse  :: (Traversable t, Applicative f) => (a -> f b) -> t a -> f (t b)
+instance Traversable (Constant a) where
+  sequenceA (Constant a)  = pure $ Constant a
+  traverse _ (Constant a) = pure $ Constant a
 
--- instance Traversable (Constant a) where
---   sequenceA (Constant a) = Constant mempty
---   -- traverse f (Constant a) = Constant a mempty
+instance (Eq a, Eq b) => EqProp (Constant a b) where (=-=) = eq
 
--- instance (Eq a, Eq b) => EqProp (Constant a b) where (=-=) = eq
-
--- instance (Arbitrary a, Arbitrary b) => Arbitrary (Constant a b) where
---   arbitrary = arbitrary >>= \a -> return $ Constant a
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Constant a b) where
+  arbitrary = arbitrary >>= \a -> return $ Constant a
 
 -- Maybe
 
@@ -261,11 +258,11 @@ main = do
   quickBatch $ functor (undefined :: Three (Int, Int, [Int]) (Int, Int, [Int]) (Int, Int, [Int]))
   quickBatch $ traversable (undefined :: Three (Int, Int, [Int]) (Int, Int, [Int]) (Int, Int, [Int]))
 
-    -- Three
+ -- Three'
   quickBatch $ functor (undefined :: Three' (Int, Int, [Int]) (Int, Int, [Int]))
   quickBatch $ traversable (undefined :: Three' (Int, Int, [Int]) (Int, Int, [Int]))
 
-  --   -- S
+ -- S
   quickBatch $ functor (undefined :: S Identity' (Int, Int, [Int]))
   quickBatch $ traversable (undefined :: S Identity' (Int, Int, [Int])) -- fails!
 

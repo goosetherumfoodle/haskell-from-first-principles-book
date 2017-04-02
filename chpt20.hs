@@ -70,7 +70,7 @@ instance Foldable (Four' a) where
   foldr f init (Four' a b c d) = f b $ f c $ f d init
 
 -- Write a filter function for Foldable types using foldMap.
-
+                                            --(f a) because Applicative is kind * -> *, but Monoid is kind *
 filterF :: (Applicative f, Foldable t, Monoid (f a)) => (a -> Bool) -> t a -> f a
 filterF pred = foldMap (makeMonoid pred) where
   makeMonoid pred a | pred a = pure a
