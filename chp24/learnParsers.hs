@@ -1,6 +1,7 @@
 module LearnParsers where
 
 import Text.Trifecta
+import Control.Applicative((<|>))
 
 stop :: Parser a
 stop = unexpected "stop"
@@ -49,6 +50,17 @@ flexParse = testParse' $ choice [string "123", string "12", string "1"]
 
 string' :: (Monad m, CharParsing m) => [Char] -> m [Char]
 string' s = sequence $ map char s
+
+thing :: Parser String
+thing = do
+  x <- char 'a'
+  y <- char 'b' <|> char 'c'
+  return $ x : [y]
+
+thing' :: Parser String
+thing' = do
+  char 'a' >>= (\x -> char 'b' <|> char 'c' >>= (\y -> return $ x : [y]))
+
 
 -- pg 899
 

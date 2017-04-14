@@ -19,4 +19,10 @@ executable chp24
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , trifecta
+                     , attoparsec
+                     , parsec
                      , raw-strings-qq
+                     , text
+                     , containers
+                     , bytestring
+                     , hspec

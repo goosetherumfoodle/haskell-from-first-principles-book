@@ -4,19 +4,29 @@ module Text.Fractions where
 
 import Control.Applicative
 import Data.Ratio ((%))
+import Data.String (IsString)
 import Text.Trifecta
 
+badFraction :: IsString s => s
 badFraction = "1/0"
+
+alsoBad :: IsString s => s
 alsoBad = "10"
+
+shouldWork :: IsString s => s
 shouldWork = "1/2"
+
+shouldAlsoWork :: IsString s => s
 shouldAlsoWork = "2/1"
 
-parseFraction :: Parser Rational
+parseFraction :: (Monad m, TokenParsing m) => m Rational
 parseFraction = do
   numerator <- decimal
-  char '/'
+  _ <- char '/'
   denominator <- decimal
-  return $ numerator % denominator
+  case denominator of
+    0 -> fail "Denominator cannot be zero"
+    _ -> return $ numerator % denominator
 
 main :: IO ()
 main = do
