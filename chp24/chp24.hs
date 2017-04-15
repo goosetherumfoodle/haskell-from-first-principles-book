@@ -3,6 +3,7 @@
 import Text.RawString.QQ
 import Text.Trifecta
 import Control.Applicative
+import Control.Monad (replicateM)
 import Data.Ratio ((%))
 
 type NumberOrString = Either Integer String
@@ -75,12 +76,64 @@ parseSemVer = do
 -- write a parsing library from scratch.
 
 parseDigit :: Parser Char
-parseDigit = foldr (<|>) (char '0') (char <$> "123456789")
+parseDigit = oneOf "1234567890"
 
 base10Integer :: Parser Integer
 base10Integer = some parseDigit >>= \digits -> return $ read digits
+
+-- 3. Extend the parser you wrote to handle negative and positive
+-- integers. Try writing a new parser in terms of the one you
+-- already have to do this.
+
+base10Integer' :: Parser Integer
+base10Integer' = do
+  negSign <- many $ char '-'
+  num <- some parseDigit
+  return $ read $ concat [negSign, num]
+
+-- 4. Write a parser for US/Canada phone numbers with varying
+-- formats.
+
+type NumberingPlanArea = Integer -- aka area code
+type Exchange = Integer
+type LineNumber = Integer
+data PhoneNumber = PhoneNumber NumberingPlanArea Exchange LineNumber
+                 deriving (Eq, Show)
+
+phoneSkipPhoneInitial = many $ string "1-"
+phoneSkipSpacing = many $ oneOf " -()."
+
+parseNPA :: Parser Integer
+parseNPA = read <$> replicateM 3 digit
+
+parseExchange :: Parser Integer
+parseExchange = read <$> replicateM 3 digit
+
+parseLineNumber :: Parser Integer
+parseLineNumber = read <$> replicateM 4 digit
+
+parsePhone :: Parser PhoneNumber
+parsePhone = do
+  phoneSkipPhoneInitial
+  phoneSkipSpacing
+  npa <- parseNPA
+  phoneSkipSpacing
+  exchange <- parseExchange
+  phoneSkipSpacing
+  lineNumber <- parseLineNumber
+  eof
+  return $ PhoneNumber npa exchange lineNumber
 
 main :: IO ()
 main = do
   print $ parseString (some (token parseNos)) mempty eitherOr
   print $ parseString parseSemVer mempty "1.5.10"
+  print $ parseString base10Integer mempty "1391"
+  print $ parseString base10Integer' mempty "666"
+  print $ parseString base10Integer' mempty "-666"
+  print $ parseString parsePhone mempty "123-456-7890"
+  print $ parseString parsePhone mempty "1234567890"
+  print $ parseString parsePhone mempty "123-456-7890"
+  print $ parseString parsePhone mempty "(123) 456 7890"
+  print $ parseString parsePhone mempty "123.456.7890"
+  print $ parseString parsePhone mempty "1-123-456-7390"
