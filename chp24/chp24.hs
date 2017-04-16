@@ -194,7 +194,7 @@ type EntryHours = Integer
 type EntryMinutes = Integer
 
 comment :: Parser [Char]
-comment = string "--" >> (some (noneOf "\n")) <* char '\n'
+comment = string "--" >> some (noneOf "\n") <* char '\n'
 
 skipComment :: Parser ()
 skipComment = skipMany comment
@@ -252,7 +252,7 @@ parseLogs = some $ parseLogDay
 main :: IO ()
 main = hspec $ do
   describe "logbook parsing" $ do
-    it "works" $ do
+    it "creates list of LogDays" $ do
       shouldBe (eitherSuccess $ parseString parseLogs mempty logBook)
                (Right [LogDay
                        (LogDate 5 2 2025)
@@ -291,3 +291,5 @@ eitherSuccess (Failure a) = Left a
 
 instance Eq ErrInfo where
   (==) err1 err2 = (show err1) == (show err2)
+
+-- todo: generate logs
