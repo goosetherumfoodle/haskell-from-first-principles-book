@@ -45,6 +45,12 @@ instance (Foldable f, Foldable g) => Foldable (Compose f g) where
   -- foldr :: Foldable t => (a -> b -> b) -> b -> t a -> b
   -- foldr aTobTob b ta = fmap (flip aTobTob b) ta
 
+-- Compose Traversable
+-- Write the Traversable instance for Compose.
+
+instance (Traversable f, Traversable g, Applicative f) => Traversable (Compose f g) where
+   traverse f comp = sequenceA $ f <$> comp
+
 main :: IO ()
 main = do
   putStrLn "hello world"
