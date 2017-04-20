@@ -137,14 +137,14 @@ parsePhone = do
 -- the beginning of a particular day.
 -- Log format example:
 
-logBook = [r|
--- wheee a comment
+logBook = [r|-- wheee a comment
 # 2025-02-05
 08:00 Breakfast
 09:00 Sanitizing moisture collector
 11:00 Exercising in high-grav gym
 12:00 Lunch
 13:00 Programming
+-- extra comment
 17:00 Commuting home in rover
 17:30 R&R
 19:00 Dinner
@@ -160,9 +160,11 @@ logBook = [r|
 13:40 Patch self up
 13:45 Commute home for rest
 14:15 Read
+-- useless comment
 21:00 Dinner
 21:15 Read
 22:00 Sleep
+
 |]
 
 noComments = [r|# 2025-02-05
@@ -312,39 +314,40 @@ main :: IO ()
 main = hspec $ do
   describe "logbook parsing" $ do
     it "creates list of LogDays" $ do
-      shouldBe (eitherSuccess $ parseString parseLog mempty logBook)
-               (Right $ Log [LogDay
-                       (LogDate 5 2 2025)
-                       [ LogEntry (EntryTime 8 0) "Breakfast"
-                       , LogEntry (EntryTime 9 0) "Sanitizing moisture collector"
-                       , LogEntry (EntryTime 11 0) "Exercising in high-grav gym"
-                       , LogEntry (EntryTime 12 0) "Lunch"
-                       , LogEntry (EntryTime 13 0) "Programming"
-                       , LogEntry (EntryTime 17 0) "Commuting home in rover"
-                       , LogEntry (EntryTime 17 30) "R&R"
-                       , LogEntry (EntryTime 19 0) "Dinner"
-                       , LogEntry (EntryTime 21 0) "Shower"
-                       , LogEntry (EntryTime 21 15) "Read"
-                       , LogEntry (EntryTime 22 0) "Sleep"
-                       ]
+      let expectedLog = Log
+                        [LogDay
+                         (LogDate 5 2 2025)
+                         [ LogEntry (EntryTime 8 0) "Breakfast"
+                         , LogEntry (EntryTime 9 0) "Sanitizing moisture collector"
+                         , LogEntry (EntryTime 11 0) "Exercising in high-grav gym"
+                         , LogEntry (EntryTime 12 0) "Lunch"
+                         , LogEntry (EntryTime 13 0) "Programming"
+                         , LogEntry (EntryTime 17 0) "Commuting home in rover"
+                         , LogEntry (EntryTime 17 30) "R&R"
+                         , LogEntry (EntryTime 19 0) "Dinner"
+                         , LogEntry (EntryTime 21 0) "Shower"
+                         , LogEntry (EntryTime 21 15) "Read"
+                         , LogEntry (EntryTime 22 0) "Sleep"
+                         ]
 
-                      , LogDay
-                        (LogDate 7 2 2025)
-                        [ LogEntry (EntryTime 8 0) "Breakfast"
-                        , LogEntry (EntryTime 9 0) "Bumped head, passed out"
-                        , LogEntry (EntryTime 13 36) "Wake up, headache"
-                        , LogEntry (EntryTime 13 37) "Go to medbay"
-                        , LogEntry (EntryTime 13 40) "Patch self up"
-                        , LogEntry (EntryTime 13 45) "Commute home for rest"
-                        , LogEntry (EntryTime 14 15) "Read"
-                        , LogEntry (EntryTime 21 0) "Dinner"
-                        , LogEntry (EntryTime 21 15) "Read"
-                        , LogEntry (EntryTime 22 0) "Sleep"
+                        , LogDay
+                          (LogDate 7 2 2025)
+                          [ LogEntry (EntryTime 8 0) "Breakfast"
+                          , LogEntry (EntryTime 9 0) "Bumped head, passed out"
+                          , LogEntry (EntryTime 13 36) "Wake up, headache"
+                          , LogEntry (EntryTime 13 37) "Go to medbay"
+                          , LogEntry (EntryTime 13 40) "Patch self up"
+                          , LogEntry (EntryTime 13 45) "Commute home for rest"
+                          , LogEntry (EntryTime 14 15) "Read"
+                          , LogEntry (EntryTime 21 0) "Dinner"
+                          , LogEntry (EntryTime 21 15) "Read"
+                          , LogEntry (EntryTime 22 0) "Sleep"
+                          ]
                         ]
-                      ]
-               )
+      shouldBe (eitherSuccess $ parseString parseLog mempty logBook)
+               (Right $ expectedLog)
 
-    it "roundtrip: input equals " $ do
+    it "roundtrip: parsing then printing logs" $ do
       let roundtrip = (show . PrintResult . (parseString parseLog mempty))
       shouldBe noComments $ roundtrip noComments
 
@@ -355,5 +358,3 @@ eitherSuccess (Failure a) = Left a
 
 instance Eq ErrInfo where
   (==) err1 err2 = (show err1) == (show err2)
-
--- todo: generate logs
