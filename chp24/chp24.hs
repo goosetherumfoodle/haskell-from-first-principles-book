@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad (replicateM)
 import Data.Ratio ((%))
 import Test.Hspec
+import Text.Printf (printf)
 
 type NumberOrString = Either Integer String
 
@@ -164,6 +165,33 @@ logBook = [r|
 22:00 Sleep
 |]
 
+noComments = [r|# 2025-02-05
+08:00 Breakfast
+09:00 Sanitizing moisture collector
+11:00 Exercising in high-grav gym
+12:00 Lunch
+13:00 Programming
+17:00 Commuting home in rover
+17:30 R&R
+19:00 Dinner
+21:00 Shower
+21:15 Read
+22:00 Sleep
+
+# 2025-02-07
+08:00 Breakfast
+09:00 Bumped head, passed out
+13:36 Wake up, headache
+13:37 Go to medbay
+13:40 Patch self up
+13:45 Commute home for rest
+14:15 Read
+21:00 Dinner
+21:15 Read
+22:00 Sleep
+
+|]
+
 -- You are to derive a reasonable datatype for representing this
 -- data yourself. For bonus points, make this bi-directional by
 -- making a Show representation for the datatype which matches
@@ -171,15 +199,15 @@ logBook = [r|
 -- using QuickCheck’s Gen and see if you can break your parser
 -- with QuickCheck.
 
-data LogDay = LogDay LogDate LogEntries deriving (Show, Eq)
+newtype Log = Log [LogDay] deriving Eq
 
-data LogDate = LogDate LogDateMonth LogDateDay LogDateYear deriving (Show, Eq)
+data LogDay = LogDay LogDate [LogEntry] deriving Eq
 
-data LogEntry = LogEntry EntryTime EntryText deriving (Show, Eq)
+data LogDate = LogDate LogDateMonth LogDateDay LogDateYear deriving Eq
 
-data EntryTime = EntryTime EntryHours EntryMinutes deriving (Show, Eq)
+data LogEntry = LogEntry EntryTime EntryText deriving Eq
 
-type LogEntries = [LogEntry]
+data EntryTime = EntryTime EntryHours EntryMinutes deriving Eq
 
 type LogDateDay = Integer
 
@@ -192,6 +220,37 @@ type EntryText = String
 type EntryHours = Integer
 
 type EntryMinutes = Integer
+
+newtype PrintResult a = PrintResult (Result a)
+
+instance Show Log where
+  show (Log logDays) = foldMap show logDays
+
+instance Show LogDay where
+  show (LogDay date entries) = concat [show date, foldMap show entries, "\n"]
+
+instance Show LogEntry where
+  show (LogEntry time text) = concat [show time, " ", text, "\n"]
+
+instance Show EntryTime where
+  show (EntryTime hrs mins) = concat [printf "%02d" hrs
+                                      , ":"
+                                      , printf "%02d" mins
+                                     ]
+
+instance Show LogDate where
+  show (LogDate month day year) = concat [ "# "
+                                         , printf "%04d" year
+                                         , "-"
+                                         , printf "%02d" day
+                                         , "-"
+                                         , printf "%02d" month
+                                         , "\n"
+                                         ]
+
+instance Show a => Show (PrintResult a) where
+  show (PrintResult (Success a)) = show a
+  show (PrintResult (Failure a)) = show a
 
 comment :: Parser [Char]
 comment = string "--" >> some (noneOf "\n") <* char '\n'
@@ -214,7 +273,7 @@ parseEntryTime = do
   return $ EntryTime hours minutes
 
 parseEntryText :: Parser EntryText
-parseEntryText = manyTill anyChar (try endOfLineOrComments)
+parseEntryText = manyTill anyChar $ try endOfLineOrComments
 
 parseLogEntry :: Parser LogEntry
 parseLogEntry = do
@@ -223,7 +282,7 @@ parseLogEntry = do
   text <- parseEntryText
   return $ LogEntry time text
 
-parseLogEntries :: Parser LogEntries
+parseLogEntries :: Parser [LogEntry]
 parseLogEntries = some parseLogEntry
 
 parseLogDate :: Parser LogDate
@@ -246,15 +305,15 @@ parseLogDay = do
   spaces
   return $ LogDay date entries
 
-parseLogs :: Parser [LogDay]
-parseLogs = some $ parseLogDay
+parseLog :: Parser Log
+parseLog = Log <$> some parseLogDay
 
 main :: IO ()
 main = hspec $ do
   describe "logbook parsing" $ do
     it "creates list of LogDays" $ do
-      shouldBe (eitherSuccess $ parseString parseLogs mempty logBook)
-               (Right [LogDay
+      shouldBe (eitherSuccess $ parseString parseLog mempty logBook)
+               (Right $ Log [LogDay
                        (LogDate 5 2 2025)
                        [ LogEntry (EntryTime 8 0) "Breakfast"
                        , LogEntry (EntryTime 9 0) "Sanitizing moisture collector"
@@ -284,6 +343,11 @@ main = hspec $ do
                         ]
                       ]
                )
+
+    it "roundtrip: input equals " $ do
+      let roundtrip = (show . PrintResult . (parseString parseLog mempty))
+      shouldBe noComments $ roundtrip noComments
+
 
 eitherSuccess :: Result a -> Either ErrInfo a
 eitherSuccess (Success a) = Right a
