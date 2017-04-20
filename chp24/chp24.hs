@@ -1,12 +1,14 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 import Text.RawString.QQ
-import Text.Trifecta
+import Text.Trifecta hiding (Result)
+import qualified Text.Trifecta as Tri (Result(Success, Failure))
 import Control.Applicative
 import Control.Monad (replicateM)
 import Data.Ratio ((%))
 import Test.Hspec
 import Text.Printf (printf)
+import Test.QuickCheck
 
 type NumberOrString = Either Integer String
 
@@ -223,7 +225,9 @@ type EntryHours = Integer
 
 type EntryMinutes = Integer
 
-newtype PrintResult a = PrintResult (Result a)
+newtype PrintResult a = PrintResult (Tri.Result a)
+
+-- Show instances
 
 instance Show Log where
   show (Log logDays) = foldMap show logDays
@@ -251,8 +255,36 @@ instance Show LogDate where
                                          ]
 
 instance Show a => Show (PrintResult a) where
-  show (PrintResult (Success a)) = show a
-  show (PrintResult (Failure a)) = show a
+  show (PrintResult (Tri.Success a)) = show a
+  show (PrintResult (Tri.Failure a)) = show a
+
+-- Arbitrary instances
+
+instance Arbitrary Log where
+  arbitrary = Log <$> listOf (arbitrary :: Gen LogDay)
+
+instance Arbitrary LogDay where
+  arbitrary = liftA2 LogDay (arbitrary :: Gen LogDate)
+                            $ listOf (arbitrary :: Gen LogEntry)
+
+instance Arbitrary LogDate where
+  arbitrary = do
+    month <- arbitrary
+    day <- arbitrary
+    year <- arbitrary
+    return $ LogDate month day year
+
+instance Arbitrary LogEntry where
+  arbitrary = do
+    time <- arbitrary
+    text <- arbitrary
+    return $ LogEntry time text
+
+instance Arbitrary EntryTime where
+  arbitrary = do
+    hours <- arbitrary
+    minutes <- arbitrary
+    return $ EntryTime hours minutes
 
 comment :: Parser [Char]
 comment = string "--" >> some (noneOf "\n") <* char '\n'
@@ -348,13 +380,17 @@ main = hspec $ do
                (Right $ expectedLog)
 
     it "roundtrip: parsing then printing logs" $ do
-      let roundtrip = (show . PrintResult . (parseString parseLog mempty))
-      shouldBe noComments $ roundtrip noComments
+      property $ \log -> logRoundTripProp $ show (log :: Log)
 
+logRoundTrip :: String -> String
+logRoundTrip = show . PrintResult . parseString parseLog mempty
 
-eitherSuccess :: Result a -> Either ErrInfo a
-eitherSuccess (Success a) = Right a
-eitherSuccess (Failure a) = Left a
+logRoundTripProp :: String -> Bool
+logRoundTripProp = liftA2 (==) logRoundTrip id -- Applicative of functions. Woo!
+
+eitherSuccess :: Tri.Result a -> Either ErrInfo a
+eitherSuccess (Tri.Success a) = Right a
+eitherSuccess (Tri.Failure a) = Left a
 
 instance Eq ErrInfo where
   (==) err1 err2 = (show err1) == (show err2)

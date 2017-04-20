@@ -26,3 +26,4 @@ executable chp24
                      , containers
                      , bytestring
                      , hspec
+                     , QuickCheck
