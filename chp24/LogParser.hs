@@ -11,7 +11,7 @@ import Data.Monoid ((<>))
 import Test.Hspec
 import Test.QuickCheck
 import Test.QuickCheck.Property (whenFail)
-import Data.Text (strip, pack)
+import qualified Data.Text as Txt (strip, pack, Text)
 import Text.Printf (printf)
 import Control.Applicative
 
@@ -87,7 +87,7 @@ newtype PrintResult a = PrintResult (Tri.Result a)
 -- Show instances
 
 instance Show Log where
-  show (Log logDays) = (foldMap show logDays)
+  show (Log logDays) = foldMap show logDays
 
 instance Show LogDay where
   show (LogDay date entries) = concat [show date, foldMap show entries, "\n"]
@@ -162,7 +162,7 @@ instance Arbitrary EntryTime where
     return $ EntryTime hours minutes
 
 instance Arbitrary EntryText where
-  arbitrary = EntryText <$> (validEntryText $ listOf $ elements "help me")
+  arbitrary = EntryText <$> validEntryText (listOf $ elements "help me")
 
 -- Functions
 
@@ -178,7 +178,7 @@ notBlank = any $ not . isSpace
 parseSomeDigits :: Int -> Parser Integer
 parseSomeDigits num = read <$> replicateM num digit
 
-comment :: Parser [Char]
+comment :: Parser String
 comment = string "--" >> some (noneOf "\n") <* char '\n'
 
 skipComment :: Parser ()
@@ -202,7 +202,7 @@ parseEntryTime = do
   return $ EntryTime (EntryHours hours) (EntryMinutes minutes)
 
 parseEntryText :: Parser EntryText
-parseEntryText = EntryText <$> (manyTill anyChar $ try endOfEntryText)
+parseEntryText = EntryText <$> manyTill anyChar (try endOfEntryText)
 
 parseLogEntry :: Parser LogEntry
 parseLogEntry = do
@@ -240,7 +240,7 @@ parseLog = Log <$> some parseLogDay
 -- Test
 
 logTest :: IO ()
-logTest = hspec $ do
+logTest = hspec $
   describe "logbook parsing" $ do
     it "creates a Log" $ do
       let expectedLog = Log
@@ -275,20 +275,23 @@ logTest = hspec $ do
                         ]
 
       shouldBe (eitherSuccess $ parseString parseLog mempty logBook)
-               (Right $ expectedLog)
+               (Right expectedLog)
 
-    it "roundtrip: parsing then printing logs" $ do
+    it "roundtrip: parsing then printing logs" $
       property $ \log -> collect log $ logRoundTripProp $ show (log :: Log)
 
 logRoundTrip :: String -> String
 logRoundTrip = show . PrintResult . parseString parseLog mempty
 
 logRoundTripProp :: String -> Property
-logRoundTripProp = liftA2 (===) (strip . pack . logRoundTrip) (strip . pack)
+logRoundTripProp = liftA2 (===) (strip . logRoundTrip) strip
+
+strip :: String -> Txt.Text
+strip = Txt.strip . Txt.pack
 
 eitherSuccess :: Tri.Result a -> Either ErrInfo a
 eitherSuccess (Tri.Success a) = Right a
 eitherSuccess (Tri.Failure a) = Left a
 
 instance Eq ErrInfo where
-  (==) err1 err2 = (show err1) == (show err2)
+  (==) err1 err2 = show err1 == show err2
