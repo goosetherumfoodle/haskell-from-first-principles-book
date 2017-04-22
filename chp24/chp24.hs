@@ -1,17 +1,16 @@
 {-# LANGUAGE QuasiQuotes #-}
 
+module Chp24 where
+
 import Text.RawString.QQ
+import Text.Trifecta
 import Text.Trifecta hiding (Result)
 import qualified Text.Trifecta as Tri (Result(Success, Failure))
-import Control.Applicative
-import Control.Monad (replicateM)
 import Data.Ratio ((%))
-import Test.Hspec
-import Text.Printf (printf)
-import Test.QuickCheck
+import Control.Applicative ((<|>))
+import LogParser (logTest, parseSomeDigits)
 
 type NumberOrString = Either Integer String
-
 
 eitherOr :: String
 eitherOr = [r|
@@ -22,8 +21,7 @@ def
 |]
 
 parseNos :: Parser NumberOrString
-parseNos = skipMany newline
-           >> (Left <$> integer) <|> (Right <$> some letter)
+parseNos = skipMany newline >> ((Left <$> integer) <|> (Right <$> some letter))
 
 -- pg 912
 -- Exercise: Try Try
@@ -107,9 +105,6 @@ data PhoneNumber = PhoneNumber NumberingPlanArea Exchange LineNumber
 phoneSkipPhoneInitial = many $ string "1-"
 phoneSkipSpacing = many $ oneOf " -()."
 
-parseSomeDigits :: Int -> Parser Integer
-parseSomeDigits num = read <$> replicateM num digit
-
 parseNPA :: Parser Integer
 parseNPA = parseSomeDigits 3
 
@@ -131,266 +126,4 @@ parsePhone = do
   eof
   return $ PhoneNumber npa exchange lineNumber
 
--- 5. Write a parser for a log file format and sum the time spent in
--- each activity. Additionally, provide an alternative aggregation
--- of the data that provides average time spent per activity per day.
--- The format supports the use of comments which your parser
--- will have to ignore. The # characters followed by a date mark
--- the beginning of a particular day.
--- Log format example:
-
-logBook = [r|-- wheee a comment
-# 2025-02-05
-08:00 Breakfast
-09:00 Sanitizing moisture collector
-11:00 Exercising in high-grav gym
-12:00 Lunch
-13:00 Programming
--- extra comment
-17:00 Commuting home in rover
-17:30 R&R
-19:00 Dinner
-21:00 Shower
-21:15 Read
-22:00 Sleep
-
-# 2025-02-07 -- dates not nececessarily sequential
-08:00 Breakfast -- should I try skippin bfast?
-09:00 Bumped head, passed out
-13:36 Wake up, headache
-13:37 Go to medbay
-13:40 Patch self up
-13:45 Commute home for rest
-14:15 Read
--- useless comment
-21:00 Dinner
-21:15 Read
-22:00 Sleep
-
-|]
-
-noComments = [r|# 2025-02-05
-08:00 Breakfast
-09:00 Sanitizing moisture collector
-11:00 Exercising in high-grav gym
-12:00 Lunch
-13:00 Programming
-17:00 Commuting home in rover
-17:30 R&R
-19:00 Dinner
-21:00 Shower
-21:15 Read
-22:00 Sleep
-
-# 2025-02-07
-08:00 Breakfast
-09:00 Bumped head, passed out
-13:36 Wake up, headache
-13:37 Go to medbay
-13:40 Patch self up
-13:45 Commute home for rest
-14:15 Read
-21:00 Dinner
-21:15 Read
-22:00 Sleep
-
-|]
-
--- You are to derive a reasonable datatype for representing this
--- data yourself. For bonus points, make this bi-directional by
--- making a Show representation for the datatype which matches
--- the format you are parsing. Then write a generator for this data
--- using QuickCheck’s Gen and see if you can break your parser
--- with QuickCheck.
-
-newtype Log = Log [LogDay] deriving Eq
-
-data LogDay = LogDay LogDate [LogEntry] deriving Eq
-
-data LogDate = LogDate LogDateMonth LogDateDay LogDateYear deriving Eq
-
-data LogEntry = LogEntry EntryTime EntryText deriving Eq
-
-data EntryTime = EntryTime EntryHours EntryMinutes deriving Eq
-
-type LogDateDay = Integer
-
-type LogDateMonth = Integer
-
-type LogDateYear = Integer
-
-type EntryText = String
-
-type EntryHours = Integer
-
-type EntryMinutes = Integer
-
-newtype PrintResult a = PrintResult (Tri.Result a)
-
--- Show instances
-
-instance Show Log where
-  show (Log logDays) = foldMap show logDays
-
-instance Show LogDay where
-  show (LogDay date entries) = concat [show date, foldMap show entries, "\n"]
-
-instance Show LogEntry where
-  show (LogEntry time text) = concat [show time, " ", text, "\n"]
-
-instance Show EntryTime where
-  show (EntryTime hrs mins) = concat [printf "%02d" hrs
-                                      , ":"
-                                      , printf "%02d" mins
-                                     ]
-
-instance Show LogDate where
-  show (LogDate month day year) = concat [ "# "
-                                         , printf "%04d" year
-                                         , "-"
-                                         , printf "%02d" day
-                                         , "-"
-                                         , printf "%02d" month
-                                         , "\n"
-                                         ]
-
-instance Show a => Show (PrintResult a) where
-  show (PrintResult (Tri.Success a)) = show a
-  show (PrintResult (Tri.Failure a)) = show a
-
--- Arbitrary instances
-
-instance Arbitrary Log where
-  arbitrary = Log <$> listOf (arbitrary :: Gen LogDay)
-
-instance Arbitrary LogDay where
-  arbitrary = liftA2 LogDay (arbitrary :: Gen LogDate)
-                            $ listOf (arbitrary :: Gen LogEntry)
-
-instance Arbitrary LogDate where
-  arbitrary = do
-    month <- arbitrary
-    day <- arbitrary
-    year <- arbitrary
-    return $ LogDate month day year
-
-instance Arbitrary LogEntry where
-  arbitrary = do
-    time <- arbitrary
-    text <- arbitrary
-    return $ LogEntry time text
-
-instance Arbitrary EntryTime where
-  arbitrary = do
-    hours <- arbitrary
-    minutes <- arbitrary
-    return $ EntryTime hours minutes
-
-comment :: Parser [Char]
-comment = string "--" >> some (noneOf "\n") <* char '\n'
-
-skipComment :: Parser ()
-skipComment = skipMany comment
-
-skipBlank :: Parser ()
-skipBlank = skipMany $ oneOf " \t"
-
-endOfLineOrComments :: Parser String
-endOfLineOrComments = skipBlank >> (string "\n" <|> comment)
-
-parseEntryTime :: Parser EntryTime
-parseEntryTime = do
-  skipComment
-  hours <- parseSomeDigits 2
-  char ':'
-  minutes <- parseSomeDigits 2
-  return $ EntryTime hours minutes
-
-parseEntryText :: Parser EntryText
-parseEntryText = manyTill anyChar $ try endOfLineOrComments
-
-parseLogEntry :: Parser LogEntry
-parseLogEntry = do
-  time <- parseEntryTime
-  space
-  text <- parseEntryText
-  return $ LogEntry time text
-
-parseLogEntries :: Parser [LogEntry]
-parseLogEntries = some parseLogEntry
-
-parseLogDate :: Parser LogDate
-parseLogDate = do
-  skipComment
-  string "# "
-  year <- parseSomeDigits 4
-  char '-'
-  day <- parseSomeDigits 2
-  char '-'
-  month <- parseSomeDigits 2
-  spaces
-  return $ LogDate month day year
-
-parseLogDay :: Parser LogDay
-parseLogDay = do
-  spaces
-  date <- parseLogDate
-  entries <- parseLogEntries
-  spaces
-  return $ LogDay date entries
-
-parseLog :: Parser Log
-parseLog = Log <$> some parseLogDay
-
-main :: IO ()
-main = hspec $ do
-  describe "logbook parsing" $ do
-    it "creates list of LogDays" $ do
-      let expectedLog = Log
-                        [LogDay
-                         (LogDate 5 2 2025)
-                         [ LogEntry (EntryTime 8 0) "Breakfast"
-                         , LogEntry (EntryTime 9 0) "Sanitizing moisture collector"
-                         , LogEntry (EntryTime 11 0) "Exercising in high-grav gym"
-                         , LogEntry (EntryTime 12 0) "Lunch"
-                         , LogEntry (EntryTime 13 0) "Programming"
-                         , LogEntry (EntryTime 17 0) "Commuting home in rover"
-                         , LogEntry (EntryTime 17 30) "R&R"
-                         , LogEntry (EntryTime 19 0) "Dinner"
-                         , LogEntry (EntryTime 21 0) "Shower"
-                         , LogEntry (EntryTime 21 15) "Read"
-                         , LogEntry (EntryTime 22 0) "Sleep"
-                         ]
-
-                        , LogDay
-                          (LogDate 7 2 2025)
-                          [ LogEntry (EntryTime 8 0) "Breakfast"
-                          , LogEntry (EntryTime 9 0) "Bumped head, passed out"
-                          , LogEntry (EntryTime 13 36) "Wake up, headache"
-                          , LogEntry (EntryTime 13 37) "Go to medbay"
-                          , LogEntry (EntryTime 13 40) "Patch self up"
-                          , LogEntry (EntryTime 13 45) "Commute home for rest"
-                          , LogEntry (EntryTime 14 15) "Read"
-                          , LogEntry (EntryTime 21 0) "Dinner"
-                          , LogEntry (EntryTime 21 15) "Read"
-                          , LogEntry (EntryTime 22 0) "Sleep"
-                          ]
-                        ]
-      shouldBe (eitherSuccess $ parseString parseLog mempty logBook)
-               (Right $ expectedLog)
-
-    it "roundtrip: parsing then printing logs" $ do
-      property $ \log -> logRoundTripProp $ show (log :: Log)
-
-logRoundTrip :: String -> String
-logRoundTrip = show . PrintResult . parseString parseLog mempty
-
-logRoundTripProp :: String -> Bool
-logRoundTripProp = liftA2 (==) logRoundTrip id -- Applicative of functions. Woo!
-
-eitherSuccess :: Tri.Result a -> Either ErrInfo a
-eitherSuccess (Tri.Success a) = Right a
-eitherSuccess (Tri.Failure a) = Left a
-
-instance Eq ErrInfo where
-  (==) err1 err2 = (show err1) == (show err2)
+main = logTest
