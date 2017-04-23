@@ -7,10 +7,8 @@ import Text.RawString.QQ
 import Text.Trifecta hiding (Result)
 import qualified Text.Trifecta as Tri (Result(Success, Failure))
 import Control.Monad (replicateM)
-import Data.Monoid ((<>))
 import Test.Hspec
 import Test.QuickCheck
-import Test.QuickCheck.Property (whenFail)
 import qualified Data.Text as Txt (strip, pack, Text)
 import Text.Printf (printf)
 import Control.Applicative

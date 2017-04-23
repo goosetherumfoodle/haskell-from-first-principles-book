@@ -4,8 +4,6 @@ module Chp24 where
 
 import Text.RawString.QQ
 import Text.Trifecta
-import Text.Trifecta hiding (Result)
-import qualified Text.Trifecta as Tri (Result(Success, Failure))
 import Data.Ratio ((%))
 import Control.Applicative ((<|>))
 import LogParser (logTest, parseSomeDigits)
