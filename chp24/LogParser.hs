@@ -160,7 +160,7 @@ instance Arbitrary EntryTime where
     return $ EntryTime hours minutes
 
 instance Arbitrary EntryText where
-  arbitrary = EntryText <$> validEntryText (listOf $ elements "help me")
+  arbitrary = EntryText <$> (arbitrary :: Gen String)
 
 -- Functions
 
@@ -168,7 +168,7 @@ validEntryText :: Gen String -> Gen String
 validEntryText = flip suchThat $ liftA2 (&&) notBlank noTrailingWhitespace
 
 noTrailingWhitespace :: String -> Bool
-noTrailingWhitespace = not . isSpace . last
+noTrailingWhitespace = not . isSpace . last -- checkout safe library
 
 notBlank :: String -> Bool
 notBlank = any $ not . isSpace

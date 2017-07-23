@@ -1,0 +1,58 @@
+# This YAML file describes your package. Stack will automatically generate a
+# Cabal file when you run `stack build`. See the hpack website for help with
+# this file: <https://github.com/sol/hpack>.
+benchmarks:
+  chpt29-benchmarks:
+    dependencies:
+    - base
+    - chpt29
+    - criterion
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: benchmark
+category: Other
+description: chpt29 is a new Haskeleton package.
+executables:
+  chpt29:
+    dependencies:
+    - base
+    - chpt29
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: executable
+extra-source-files:
+- CHANGELOG.md
+- LICENSE.md
+- package.yaml
+- README.md
+- stack.yaml
+ghc-options: -Wall
+github: githubuser/chpt29
+library:
+  dependencies:
+  - base
+  source-dirs: library
+license: MIT
+maintainer: Author name here
+name: chpt29
+synopsis: A new Haskeleton package.
+tests:
+  chpt29-test-suite:
+    dependencies:
+    - base
+    - chpt29
+    - tasty
+    - tasty-hspec
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: test-suite
+version: '0.0.0'

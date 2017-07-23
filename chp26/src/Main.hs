@@ -2,6 +2,8 @@ module Main where
 
 import Control.Applicative (liftA2)
 import Control.Monad (join)
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
 
 newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
 
@@ -48,11 +50,11 @@ instance Applicative m => Applicative (EitherT e m) where
 instance Monad m => Monad (EitherT e m) where
   return = pure
 
-  (EitherT meea) >>= atemb = EitherT $ do
+  (EitherT meea) >>= f = EitherT $ do
     x <- meea
     case x of
       Left e ->  return $ Left e
-      Right a -> runEitherT $ atemb a
+      Right a -> runEitherT $ f a
 
 
 -- -- 4. Write the swapEitherT helper function for EitherT.
@@ -138,13 +140,40 @@ instance (Monad m) => Monad (StateT s m) where
 -- pg 990
 
 newtype ExceptT e m a = ExceptT { runExceptT :: m (Either e a) }
+-- newtype ReaderT r m a = ReaderT { runReaderT :: r -> m a }
+-- newtype MaybeT m a = MaybeT { runMaybeT :: m (Maybe a) }
+
 
 -- pg 992
 -- Turn readerUnwrap from the previous example back into embedded
 -- through the use of the data constructors for each transformer.
 
-embedded :: MaybeT (ExceptT String (ReaderT () IO)) Int
-embedded = undefined
+-- embedded :: MaybeT (ExceptT String (ReaderT () IO)) Int
+-- embedded = MaybeT (const $ Right $ Just 1)
+
+-- pg 1002
+-- newtype StateT s m a = StateT { runStateT :: s -> m (a,s) }
+
+
+instance MonadTrans (EitherT e) where
+  lift = EitherT . fmap Right
+
+instance MonadTrans (StateT s) where
+  lift ma = StateT $ flip fmap ma . flip (,)
+
+-- pg 1007
+instance (MonadIO m) => MonadIO (EitherT e m) where
+  liftIO = lift . liftIO
+
+instance (MonadIO m) => MonadIO (MaybeT m) where
+  liftIO = MaybeT . fmap Just . liftIO
+
+-- newtype ReaderT r m a = ReaderT { runReaderT :: r -> m a }
+
+instance (MonadIO m) => MonadIO (ReaderT r m) where
+  liftIO a = ReaderT (\r ->  liftIO a)-- IO a -> ReaderT r m a
+
+-- todo: StateT
 
 main :: IO ()
 main = putStrLn "hello world"

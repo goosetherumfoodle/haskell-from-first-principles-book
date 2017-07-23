@@ -5,6 +5,8 @@ module Main where
 import Control.Monad(join)
 import Data.Monoid((<>))
 
+-- armstrong: namespaces
+
 newtype Compose f g a = Compose { getCompose :: f (g a) } deriving (Eq, Show)
 
 instance (Functor f, Functor g) => Functor (Compose f g) where
@@ -57,7 +59,7 @@ instance (Traversable f, Traversable g, Applicative f) => Traversable (Compose f
 class Bifunctor p where
   {-# MINIMAL bimap | first, second #-}
 
-  bimap :: (a -> b) -> (c -> d) -> p a c -> p b d
+  bimap :: (a -> b) -> (c -> d) -> p a c  -> p b d
   bimap f g = first f . second g
 
   first :: (a -> b) -> p a c -> p b c
@@ -150,8 +152,7 @@ instance Monad m => Monad (IdentityT m) where
   return = pure
 
   (>>=) :: IdentityT m a -> (a -> IdentityT m b) -> IdentityT m b
-  (IdentityT ma) >>= f = IdentityT $ Control.Monad.join $ fmap runIdentityT (fmap f ma)
+  (IdentityT ma) >>= f = IdentityT $ ma >>= (runIdentityT . f)
 
 main :: IO ()
-main = do
-  putStrLn "hello world"
+main = putStrLn "hello world"

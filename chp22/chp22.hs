@@ -5,23 +5,23 @@ import Data.Maybe
 
 newtype Reader r a = Reader { runReader :: r -> a }
 
-Short Exercise: Warming Up
-We’ll be doing something here very similar to what you saw above,
-to give you practice and try to develop a feel or intuition for what is
-to come. These are similar enough to what you just saw that you can
-almost copy and paste, so try not to overthink them too much.
-First, start a file off like this:
-import Data.Char
-cap :: [Char] -> [Char]
-cap xs = map toUpper xs
-rev :: [Char] -> [Char]
-rev xs = reverse xs
-Two simple functions with the same type, taking the same type
-of input. We could compose them, using (.) or fmap:
-composed :: [Char] -> [Char]
-composed = undefined
-fmapped :: [Char] -> [Char]
-fmapped = undefined
+-- Short Exercise: Warming Up
+-- We’ll be doing something here very similar to what you saw above,
+-- to give you practice and try to develop a feel or intuition for what is
+-- to come. These are similar enough to what you just saw that you can
+-- almost copy and paste, so try not to overthink them too much.
+-- First, start a file off like this:
+-- import Data.Char
+-- cap :: [Char] -> [Char]
+-- cap xs = map toUpper xs
+-- rev :: [Char] -> [Char]
+-- rev xs = reverse xs
+-- Two simple functions with the same type, taking the same type
+-- of input. We could compose them, using (.) or fmap:
+-- composed :: [Char] -> [Char]
+-- composed = undefined
+-- fmapped :: [Char] -> [Char]
+-- fmapped = undefined
 
 -- ex Ask pg 845
 

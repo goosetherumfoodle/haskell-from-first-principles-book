@@ -1,0 +1,58 @@
+# This YAML file describes your package. Stack will automatically generate a
+# Cabal file when you run `stack build`. See the hpack website for help with
+# this file: <https://github.com/sol/hpack>.
+benchmarks:
+  Ch27-benchmarks:
+    dependencies:
+    - base
+    - Ch27
+    - criterion
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: benchmark
+category: Other
+description: Ch27 is a new Haskeleton package.
+executables:
+  Ch27:
+    dependencies:
+    - base
+    - Ch27
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: executable
+extra-source-files:
+- CHANGELOG.md
+- LICENSE.md
+- package.yaml
+- README.md
+- stack.yaml
+ghc-options: -Wall
+github: githubuser/Ch27
+library:
+  dependencies:
+  - base
+  source-dirs: library
+license: MIT
+maintainer: Author name here
+name: Ch27
+synopsis: A new Haskeleton package.
+tests:
+  Ch27-test-suite:
+    dependencies:
+    - base
+    - Ch27
+    - tasty
+    - tasty-hspec
+    ghc-options:
+    - -rtsopts
+    - -threaded
+    - -with-rtsopts=-N
+    main: Main.hs
+    source-dirs: test-suite
+version: '0.0.0'
