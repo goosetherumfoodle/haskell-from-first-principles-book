@@ -22,22 +22,18 @@ module Example (main) where
 -- of the exercise is figuring this out for yourself.
 
 
-import Data.Char (ord, chr, toLower)
+import Data.Char (ord, chr)
 import System.Environment (getArgs)
 import System.IO (stdin, stdout, hPutStr, hGetLine, hGetContents)
 
 newtype Key a = Key a deriving (Show, Functor)
-type Keyword = Key String
+
 data EncryptionFlag = EncryptFlag | DecryptFlag
 
-
+type Keyword = Key String
 type Plaintext = String
 type Ciphertext = String
 type KeyChar = Char
-type PlainChar = Char
-type CipherChar = Char
-type PlaintextIndex = Int
-type Offset = Int
 
 main :: IO ()
 main = do flag <- getFlag
@@ -99,41 +95,3 @@ rotateCombine :: Char -> Char -> (Int -> Int -> Int) -> Char
 rotateCombine a b op = chr $ inflate $ (flip mod 95) $ (deflate a) `op` (deflate b) where
   deflate a = (ord a) - 31
   inflate = (31 +)
-
-encipherChar :: Keyword -> (PlaintextIndex, PlainChar) -> CipherChar
-encipherChar _ (_, ' ') = ' '
-encipherChar keyword (i, pchar) = lowerAlphaASCII $ (ord pchar) + (keywordOffset keyword i)
-
-decipherChar :: Keyword -> (PlaintextIndex, PlainChar) -> CipherChar
-decipherChar _ (_, ' ') = ' '
-decipherChar keyword (i, pchar) = lowerAlphaASCII $  (ord pchar) - (keywordOffset keyword i)
-
-lowerAlphaASCII :: Int -> Char
-lowerAlphaASCII = chr . (+ 97) . (flip mod 26) . ((-) 97)
-
-keywordOffset :: Keyword -> PlaintextIndex -> Offset
-keywordOffset (Key keyword) = toOffset . (!!) (downcase keyword) . (flip mod $ length keyword)
-
-toOffset :: Char -> Offset
-toOffset = (flip mod 97) . ord
-
-downcase :: String -> String
-downcase = map toLower
-
-withIndex :: String -> [(Int, Char)]
-withIndex string = init $ scanr itemAndIndex (strLength - 2, ' ') string where
-  strLength = length string
-  itemAndIndex ' ' prev  = (fst prev, ' ')
-  itemAndIndex char prev = (fst prev - 1, char)
-
--- starts at 97, goes to 122, diff 25
-
--- reduce each ascii by 97
--- add them
--- mod 25
--- inflate by 97
-
-
--- make an ASCII product type, define functor on that shit
-
--- full ascii range 32 to 126, diff 94
