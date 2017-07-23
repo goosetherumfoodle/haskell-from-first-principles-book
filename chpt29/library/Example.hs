@@ -79,10 +79,10 @@ foundPlainText :: IO Plaintext
 foundPlainText = hGetLine stdin
 
 vigenereEncipher :: Keyword -> Plaintext -> Ciphertext
-vigenereEncipher keyword = encipherPair . (pairChars keyword) . downcase
+vigenereEncipher keyword = encipherPair . (pairChars keyword)
 
 vigenereDecipher :: Keyword -> Ciphertext -> Plaintext
-vigenereDecipher keyword = decipherPair . (pairChars keyword) . downcase
+vigenereDecipher keyword = decipherPair . (pairChars keyword)
 
 pairChars :: Keyword -> String -> [(KeyChar, Char)]
 pairChars (Key key) string = zip (cycle key) string
@@ -96,9 +96,9 @@ decipherPair = map combine where
   combine (a, b) = rotateCombine b a (-)
 
 rotateCombine :: Char -> Char -> (Int -> Int -> Int) -> Char
-rotateCombine a b op = chr $ inflate $ (flip mod 26) $ (deflate a) `op` (deflate b) where
-  deflate a = (ord a) - 96
-  inflate = (96 +)
+rotateCombine a b op = chr $ inflate $ (flip mod 95) $ (deflate a) `op` (deflate b) where
+  deflate a = (ord a) - 31
+  inflate = (31 +)
 
 encipherChar :: Keyword -> (PlaintextIndex, PlainChar) -> CipherChar
 encipherChar _ (_, ' ') = ' '
