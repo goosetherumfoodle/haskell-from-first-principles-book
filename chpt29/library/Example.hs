@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, FlexibleInstances #-}
 module Example (main) where
 
 
@@ -25,8 +25,10 @@ module Example (main) where
 import Data.Char (ord, chr)
 import System.Environment (getArgs)
 import System.IO (stdin, stdout, hPutStr, hGetLine, hGetContents)
+import Control.Applicative (liftA2)
 
 newtype Key a = Key a deriving (Show, Functor)
+newtype ASCIInum a = ASCIInum a deriving Show
 
 data EncryptionFlag = EncryptFlag | DecryptFlag
 
@@ -40,6 +42,16 @@ main = do flag <- getFlag
           case flag of
             EncryptFlag -> mainEncrypt
             DecryptFlag -> mainDecrypt
+
+toASCIInum :: Char -> Maybe (ASCIInum Int)
+toASCIInum a | (32 <= ord a) && ord a <= 126 = Just $ ASCIInum $ ord a
+             | otherwise = Nothing
+
+toASCIInum' :: Char -> ASCIInum Int
+toASCIInum' = ASCIInum . ord
+
+fromASCIInum :: ASCIInum Int -> Char
+fromASCIInum (ASCIInum a) = chr a
 
 mainEncrypt :: IO ()
 mainEncrypt = do key <- foundKey
@@ -84,14 +96,19 @@ pairChars :: Keyword -> String -> [(KeyChar, Char)]
 pairChars (Key key) string = zip (cycle key) string
 
 encipherPair :: [(KeyChar, Char)] -> Ciphertext
-encipherPair = map combine where
-  combine (a, b) = rotateCombine a b (+)
+encipherPair = map (fromASCIInum . combine) where
+  combine = liftA2 (+) (toASCIInum' . fst) (toASCIInum' . snd)
 
 decipherPair :: [(KeyChar, Char)] -> Plaintext
-decipherPair = map combine where
-  combine (a, b) = rotateCombine b a (-)
+decipherPair = map (fromASCIInum . combine) where
+  combine  = liftA2 (-) (toASCIInum' . snd) (toASCIInum' . fst)
 
-rotateCombine :: Char -> Char -> (Int -> Int -> Int) -> Char
-rotateCombine a b op = chr $ inflate $ (flip mod 95) $ (deflate a) `op` (deflate b) where
-  deflate a = (ord a) - 31
-  inflate = (31 +)
+instance Num (ASCIInum Int) where
+  (ASCIInum a) + (ASCIInum b) = ASCIInum $ (+ 31) $ (flip mod 95) $ (a - 31) + (b - 31)
+  (ASCIInum a) - (ASCIInum b) = ASCIInum $ (+ 31) $ (flip mod 95) $ (a - 31) - (b - 31)
+  (ASCIInum a) * (ASCIInum b) = ASCIInum $ (+ 31) $ (flip mod 95) $ (a - 31) * (b - 31)
+  abs (ASCIInum a) = ASCIInum $ (+ 31) $ (flip mod 95) $ abs $ (a - 31)
+  fromInteger = ASCIInum . fromInteger . (+ 31) . (flip mod 95)
+  signum (ASCIInum a) | a > 0 = 1
+                      | a == 0 = 0
+                      | otherwise = (-1)
