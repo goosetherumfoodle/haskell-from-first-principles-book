@@ -1,6 +1,6 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances #-}
-module Example (main) where
+{-# LANGUAGE DeriveFunctor #-}
 
+module Example (main) where
 
 -- Reusing the Vigenère cipher you wrote back in algebraic datatypes
 -- and wrote tests for in testing, make an executable that takes a key
@@ -103,7 +103,7 @@ decipherPair :: [(KeyChar, Char)] -> Plaintext
 decipherPair = map (fromASCIInum . combine) where
   combine  = liftA2 (-) (toASCIInum' . snd) (toASCIInum' . fst)
 
-instance Num (ASCIInum Int) where
+instance (Integral a, Eq a) => Num (ASCIInum a) where
   (ASCIInum a) + (ASCIInum b) = ASCIInum $ (+ 31) $ (flip mod 95) $ (a - 31) + (b - 31)
   (ASCIInum a) - (ASCIInum b) = ASCIInum $ (+ 31) $ (flip mod 95) $ (a - 31) - (b - 31)
   (ASCIInum a) * (ASCIInum b) = ASCIInum $ (+ 31) $ (flip mod 95) $ (a - 31) * (b - 31)

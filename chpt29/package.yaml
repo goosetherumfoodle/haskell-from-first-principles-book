@@ -11,6 +11,7 @@ benchmarks:
     - -rtsopts
     - -threaded
     - -with-rtsopts=-N
+    - -O2
     main: Main.hs
     source-dirs: benchmark
 category: Other
