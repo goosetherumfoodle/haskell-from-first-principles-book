@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DeriveFunctor #-}
 
 module Example (main) where
@@ -112,3 +113,9 @@ instance (Integral a, Eq a) => Num (ASCIInum a) where
   signum (ASCIInum a) | a > 0 = 1
                       | a == 0 = 0
                       | otherwise = (-1)
+
+-- look at Data.Modular
+
+-- instance Functor ASCIInum where
+--   fmap :: Integral a => (a -> b) -> f a -> f b
+--   fmap f (ASCIInum a) = ASCIInum $ f (a + 10)
