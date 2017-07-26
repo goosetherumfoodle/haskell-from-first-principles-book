@@ -38,6 +38,7 @@ github: githubuser/chpt29
 library:
   dependencies:
   - base
+  - transformers
   source-dirs: library
 license: MIT
 maintainer: Author name here

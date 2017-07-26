@@ -1,5 +1,4 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE InstanceSigs, DeriveFunctor #-}
 
 module Example (main) where
 
@@ -27,6 +26,8 @@ import Data.Char (ord, chr)
 import System.Environment (getArgs)
 import System.IO (stdin, stdout, hPutStr, hGetLine, hGetContents)
 import Control.Applicative (liftA2)
+import Control.Monad (join)
+import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 
 newtype Key a = Key a deriving (Show, Functor)
 newtype ASCIInum a = ASCIInum a deriving Show
@@ -39,14 +40,15 @@ type Ciphertext = String
 type KeyChar = Char
 
 main :: IO ()
-main = do flag <- getFlag
+main = do flag <- runExceptT getFlag
           case flag of
-            EncryptFlag -> mainEncrypt
-            DecryptFlag -> mainDecrypt
+            (Right EncryptFlag) -> join $ display <$> mainEncrypt
+            (Right DecryptFlag) -> join $ display <$> mainDecrypt
+            (Left problem) -> display problem
 
-toASCIInum :: Char -> Maybe (ASCIInum Int)
-toASCIInum a | (32 <= ord a) && ord a <= 126 = Just $ ASCIInum $ ord a
-             | otherwise = Nothing
+-- toASCIInum :: Char -> Maybe (ASCIInum Int)
+-- toASCIInum a | (32 <= ord a) && ord a <= 126 = Just $ ASCIInum $ ord a
+--              | otherwise = Nothing
 
 toASCIInum' :: Char -> ASCIInum Int
 toASCIInum' = ASCIInum . ord
@@ -54,38 +56,51 @@ toASCIInum' = ASCIInum . ord
 fromASCIInum :: ASCIInum Int -> Char
 fromASCIInum (ASCIInum a) = chr a
 
-mainEncrypt :: IO ()
-mainEncrypt = do key <- foundKey
-                 plainText <- foundPlainText
-                 let cipherText = vigenereEncipher key plainText
-                 display cipherText
+mainEncrypt :: IO String
+mainEncrypt = getString <$> runExceptT results where
+  results = do key <- foundKey
+               plainText <- foundPlainText
+               let cipherText = vigenereEncipher key plainText
+               return cipherText
+  getString (Left a) = a
+  getString (Right a) = a
 
-mainDecrypt :: IO ()
-mainDecrypt = do key <- foundKey
-                 ciphertext <- foundCiphertext
-                 let cipherText = vigenereDecipher key ciphertext
-                 display cipherText
+mainDecrypt :: IO String
+mainDecrypt = getString <$> runExceptT results where
+  results = do key <- foundKey
+               ciphertext <- foundCiphertext
+               let plainText = vigenereDecipher key ciphertext
+               return plainText
+  getString (Left a) = a
+  getString (Right a) = a
 
-getFlag :: IO EncryptionFlag
-getFlag = buildFlag . (!! 0) <$> getArgs
+getFlag :: ExceptT String IO EncryptionFlag
+getFlag = do argList <- ExceptT $ Right <$> getArgs
+             if length argList >= 1
+               then ExceptT $ return $ buildFlag $ argList !! 0
+               else ExceptT $ return $ Left "decrypt/encrypt flag not found in args"
 
-buildFlag :: String -> EncryptionFlag
-buildFlag input | input == "-d" = DecryptFlag
-                | input == "-D" = DecryptFlag
-                | input == "-e" = EncryptFlag
-                | input == "-E" = EncryptFlag
+buildFlag :: String -> Either String EncryptionFlag
+buildFlag input | input == "-d" = Right DecryptFlag
+                | input == "-D" = Right DecryptFlag
+                | input == "-e" = Right EncryptFlag
+                | input == "-E" = Right EncryptFlag
+                | otherwise = Left $ "flag: " ++ input ++ " not recognized"
 
 display :: String -> IO ()
-display = hPutStr stdout
+display = hPutStr stdout . (++ "\n")
 
-foundKey :: IO Keyword
-foundKey = Key . (!! 1) <$> getArgs
+foundKey :: ExceptT String IO Keyword
+foundKey = do argList <- ExceptT $ Right <$> getArgs
+              if length argList >= 2
+                then ExceptT $ return $ Right $ Key $ argList !! 1
+                else ExceptT $ return $ Left "Key not found in arguments"
 
-foundCiphertext :: IO String
-foundCiphertext = hGetContents stdin
+foundCiphertext :: ExceptT String IO String
+foundCiphertext = ExceptT $ Right <$> hGetContents stdin
 
-foundPlainText :: IO Plaintext
-foundPlainText = hGetLine stdin
+foundPlainText :: ExceptT String IO Plaintext
+foundPlainText = ExceptT $ Right <$> hGetLine stdin
 
 vigenereEncipher :: Keyword -> Plaintext -> Ciphertext
 vigenereEncipher keyword = encipherPair . (pairChars keyword)
@@ -115,7 +130,3 @@ instance (Integral a, Eq a) => Num (ASCIInum a) where
                       | otherwise = (-1)
 
 -- look at Data.Modular
-
--- instance Functor ASCIInum where
---   fmap :: Integral a => (a -> b) -> f a -> f b
---   fmap f (ASCIInum a) = ASCIInum $ f (a + 10)
