@@ -39,6 +39,7 @@ library:
   dependencies:
   - base
   - transformers
+  - random
   source-dirs: library
 license: MIT
 maintainer: Author name here
