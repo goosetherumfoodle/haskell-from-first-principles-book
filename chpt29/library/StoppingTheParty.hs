@@ -35,3 +35,12 @@ main' = forever $ do
   threadDelay (1 * 1000000) where
     handler :: SomeException -> IO ()
     handler e = putStrLn $ "got exception: " <> show e
+
+
+-- pg 1160:
+-- The conventional way to throw an exception is to use
+-- throwIO, which has IO in its result. This is the same thing as throw, but
+-- throwIO embeds the exception in IO. You always handle exceptions
+-- in IO 3 . Handling exceptions must be done in IO even if they were
+-- thrown without an IO type. You almost never want throw as it throws
+-- exceptions without any warning in the type, even IO.
